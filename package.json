@@ -1,0 +1,19 @@
+{
+  "name":"NodeChatService",
+  "description":"Node.JS Chat Service",
+  "version" : "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "node index"
+  },
+  "dependencies": {
+    "async": "0.1.x",
+    "mongodb": "1.2.x",
+    "express": "4.13.4",
+    "body-parser": "1.15.0",
+	"bcryptjs": "2.3.0",
+	"jade": "1.11.0",
+	"express-mailer": "0.3.0",
+	"imagemagick": "0.1.3"
+  }
+}
