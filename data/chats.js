@@ -53,6 +53,7 @@ function ChatUpdate(chat, fromuserid, callback) {
           var update = { ChatId: chat._id,isChatUpdate: true }
           if (chat.UsersInChat[i].toString() == fromuserid.toString()) iterator(i+1);
           else {
+            if (typeof chat.UsersInChat[i] == 'string') chat.UsersInChat[i] = mongoObj(chat.UsersInChat[i]);
             db.users.update({ _id: chat.UsersInChat[i] },{ $push: { Updates: update } },{safe:true},function(err, results) {
               if (err) cb(err);
               else iterator(i+1);
@@ -169,22 +170,36 @@ exports.leavechat = function (dbuser, chatid, callback) {
             chat.UsersInChat.splice(chat.UsersInChat.indexOf(dbuser._id.toString()),1);
             db.chats.remove({ _id: chat._id },{safe: true},function(err, result) {
               if (err) cb(err);
-              else cb(null, chat);
+              else cb(null, chat, true);
             });
           }
           //otherwise, user is removed from the chat
           else {
             db.chats.findAndModify({ _id: chat._id},[],{ $pull: { UsersInChat : dbuser._id } }, { new: true }, function(err, updated) {
               if (err) cb(err);
-              else cb(null, updated);
+              else cb(null, updated, false);
             });
           }
         },
         //remove any chat updates associated with that chat from the user object
-        function (chat, cb) {
+        function (chat, removed, cb) {
           db.users.update({ _id: dbuser._id},{ $pull : { Updates: { ChatId: chat._id } } },{safe:true},function(err,updated) {
             if (err) cb(err);
-            else cb(null, chat);
+            else {
+              if (removed && chat.UsersInChat.length == 1){
+                db.users.update({ _id: mongoObj(chat.UsersInChat[0]) },{ $pull : { Updates: { ChatId: chat._id } } },{safe:true},function(err,updated) {
+                  if (err) cb(err);
+                  else cb(null, chat);
+                });
+              }
+              else if (removed && chat.UsersInChat.length == 0 && chats.InvitedUsers > 0) {
+                db.users.update({ _id: { $in : chat.InvitedUsers } },{ $pull : { Updates: { ChatId: chat._id } } },{safe:true},function(err,updated) {
+                  if (err) cb(err);
+                  else cb(null, chat);
+                });
+              }
+              else cb(null, chat);
+            }
           });
         },
         //notify other users
@@ -433,7 +448,7 @@ exports.send = function (dbuser, messages, callback) {
                         if (chat.UsersInChat[j].toString() == dbuser._id.toString()) iterator4(j+1);
                         else {
                           var limitmsg = (messages[stringid].length > 3000 ? messages[stringid].substring(messages[stringid].length-3000) : messages[stringid]);
-                          db.users.update({ _id: chat.UsersInChat[j],"Updates.ChatId":chat._id },{ $set: { "Updates.$.Message": limitmsg,"Updates.$.Updated": new Date() } },{safe:true},function(err, results) {
+                          db.users.update({ _id: chat.UsersInChat[j],Updates: { $elemMatch : { ChatId : { $eq: chat._id }, FromUser: { $eq: dbuser._id } } } },{ $set: { "Updates.$.Message": limitmsg,"Updates.$.Updated": new Date() } },{safe:true},function(err, results) {
                             //I was hoping this would  add the element if it's not found.  guess not
                             if (err) cb(err);
                             else if (results == 0) {

@@ -346,7 +346,6 @@ exports.GetFriendInfo = function(req,res) {
              user_data.auth(req.body, function(err, result, dbuser) {
                if (err) cb(err);
                else if (!result) cb(1);
-               else if (dbuser.isGuest) cb(25);
                else cb(null);
              });
            }

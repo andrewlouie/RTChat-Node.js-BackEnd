@@ -135,7 +135,7 @@ exports.create_user = function (data, callback) {
             created_user.Friends = [];
             created_user.BlockedUsers = [];
             created_user.Updates = [];
-            created_user.IsGuest = false;
+            created_user.isGuest = false;
             db.users.insert(created_user, { w: 1, safe: true }, cb);
         }
     ],
@@ -205,7 +205,7 @@ exports.search = function(searchterm, cb) {
     async.waterfall([
 //LOOK UP USER
         function (cb) {
-            db.users.find({ "UserName" :  { $regex: searchterm, $options: '-i' } },{ UserName: 1,ProfilePic: 1,IsGuest : 1,Name:1 }).limit(20).toArray(function(err, results) {
+            db.users.find({ "UserName" :  { $regex: searchterm, $options: '-i' } },{ UserName: 1,ProfilePic: 1,isGuest : 1,Name:1 }).limit(20).toArray(function(err, results) {
               if (err) cb(err);
               else {
                 db.users.count({ "UserName" :  { $regex: searchterm, $options: '-i' } },function(err,count) {
@@ -285,7 +285,7 @@ exports.logout = function (dbuser, callback) {
         },
         //if you're a guest you must leave chats because you can't log back in as a guest
         function(cb) {
-          if (!dbuser.IsGuest) { cb(null, true); return; }
+          if (!dbuser.isGuest) { cb(null, true); return; }
           db.chats.find({ UsersInChat: { $elemMatch : { $eq: dbuser._id } } }).toArray(function(err, results) {
             if (err) cb(err);
               (function iterator6(i) {
@@ -429,7 +429,7 @@ exports.addfriend = function(dbuser, friendid, cb) {
         },
         //check if they're already your friend
         function (otheruser, cb) {
-          if (otheruser.IsGuest) { cb(25); return; }
+          if (otheruser.isGuest) { cb(25); return; }
           var newarray = [];
           for (i=0;i<dbuser.Friends.length;i++) {
             newarray.push(dbuser.Friends[i].toString());
@@ -598,7 +598,7 @@ exports.guestlogin = function (username, callback) {
         function (cb) {
           created_user.Name = "Guest User";
           created_user.UserName = "+Guest-" + username;
-          created_user.IsGuest = true;
+          created_user.isGuest = true;
           created_user.RegisteredDate = new Date();
           created_user.LastCheck = new Date();
           created_user.Friends = [];
@@ -626,7 +626,7 @@ exports.receive = function (dbuser, callback) {
             if (i < dbuser.Updates.length) {
               if (dbuser.Updates[i].isChatUpdate) {
                 db.chats.find({ "_id": dbuser.Updates[i].ChatId }).toArray(function(err, results) {
-                  if (results.length == 0) iterator5(i+1);
+                  if (results.length == 0) { iterator5(i+1); dbuser.Updates[i].Chat = {}; dbuser.Updates[i].Chat._id = dbuser.Updates[i].ChatId; dbuser.Updates[i].Chat.UsersInChat = []; dbuser.Updates[i].Chat.InvitedUsers = []; }
                   else {
                     chats_data.populate(results[0], function(err, populatedchat) {
                       dbuser.Updates[i].Chat = populatedchat;
@@ -660,7 +660,7 @@ exports.receive = function (dbuser, callback) {
 exports.getfriends = function(dbuser, cb) {
     async.waterfall([
         function (cb) {
-          if (!dbuser.Friends.length) { cb(null); return; }
+          if (!dbuser.Friends.length) { cb(null,0); return; }
           db.users.find({ _id: { $in : dbuser.Friends } },{ UserName : 1, ProfilePic: 1,Name: 1,TagLine: 1,CookieString: 1,LastCheck:1},{safe: true}).toArray(function(err, results) {
             if (err) cb(err);
             else {
@@ -669,6 +669,7 @@ exports.getfriends = function(dbuser, cb) {
           });
         },
         function (results, cb) {
+          if (!results) { cb(null,[]); return; }
           for (i=0;i<results.length;i++) {
             results[i] = { _id: results[i]._id,UserName: results[i].UserName,ProfilePic: results[i].ProfilePic,TagLine: results[i].TagLine,Name:results[i].Name,OnlineStatus: OnlineStatus(results[i].CookieString,results[i].LastCheck) }
           }

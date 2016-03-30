@@ -21,6 +21,7 @@ exports.send_error = function(res, data) {
 }
 //return only the necessary parts
 exports.striped_user = function(user) {
+  if (!user.Chats) user.Chats = [];
   return { Name : user.Name, TagLine : user.TagLine, Email : user.Email, AutoJoinChats : user.AutoJoinChats, Username : user.UserName, ProfilePic : user.ProfilePic,Chats : user.Chats,Friends : user.Friends,Updates: user.Updates,BlockedUsers: user.BlockedUsers  }
 }
 
